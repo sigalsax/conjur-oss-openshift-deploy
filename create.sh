@@ -42,10 +42,6 @@ postgres_password=$(openssl rand -base64 16)
 oc create secret generic conjur-database-url --from-literal=DATABASE_URL=postgres://postgres:$postgres_password@conjur-postgres/postgres --namespace=$CONJUR_NAMESPACE_NAME
 oc create secret generic postgres-admin-password --from-literal=POSTGRESQL_ADMIN_PASSWORD=$postgres_password --namespace=$CONJUR_NAMESPACE_NAME
 
-platform_image() {
-  echo "$DOCKER_REGISTRY_PATH/$CONJUR_NAMESPACE_NAME/$1:$CONJUR_NAMESPACE_NAME"
-}
-
 # Deploy our postgres database as a pod
 postgres_image=$(platform_image "postgres")
 sed -e "s#{{ IMAGE_PULL_POLICY }}#$IMAGE_PULL_POLICY#g" "./conjur-postgres.yaml" | sed -e "s#{{ POSTGRES_IMAGE }}#$postgres_image#g" | oc create -f -

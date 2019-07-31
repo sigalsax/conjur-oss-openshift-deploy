@@ -82,33 +82,6 @@ sed -e "s#{{ CLI_IMAGE }}#$cli_app_image#g" "./conjur-cli.yaml" |
   sed -e "s#{{ IMAGE_PULL_POLICY }}#$IMAGE_PULL_POLICY#g" |
   oc create -f -
 
-function wait_for_it() {
-  local timeout=$1
-  local spacer=2
-  shift
-
-  if ! [ $timeout = '-1' ]; then
-    local times_to_run=$((timeout / spacer))
-
-    echo "Waiting for '$@' up to $timeout s"
-    for i in $(seq $times_to_run); do
-      eval $@ > /dev/null && echo 'Success!' && break
-      echo -n .
-      sleep $spacer
-    done
-
-    eval $@
-  else
-    echo "Waiting for '$@' forever"
-
-    while ! eval $@ > /dev/null; do
-      echo -n .
-      sleep $spacer
-    done
-    echo 'Success!'
-  fi
-}
-
 echo "Waiting for Conjur pod to launch..."
 wait_for_it 300 "oc describe po conjur-cluster | grep State: | grep -c Running | grep -q 2"
 echo "Waiting for Conjur cli pod to launch..."

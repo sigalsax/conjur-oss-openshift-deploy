@@ -51,12 +51,11 @@ conjur_image=$(platform_image "conjur")
 nginx_image=$(platform_image "nginx")
 
 # Log into docker
-sudo docker login --username=admin --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
+sudo docker login --username=_ --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
 
 # Push conjur image to openshift repo
 sudo docker pull cyberark/conjur
-imageId=$(sudo docker images | grep "docker.io/cyberark/conjur " | awk '{print $3}')
-sudo docker tag $imageId $conjur_image
+sudo docker tag "cyberark/conjur" $conjur_image
 sudo docker push $conjur_image
 
 # Push nginx image to openshift repo
@@ -79,22 +78,22 @@ sed -e "s#{{ CLI_IMAGE }}#$cli_app_image#g" "./conjur-cli.yaml" |
   oc create -f -
 
 echo "Waiting for Conjur pod to launch..."
-wait_for_it 300 "oc describe po conjur-cluster | grep State: | grep -c Running | grep -q 2"
+wait_for_it 50 "oc describe pod conjur-cluster | grep State: | grep -c Running | grep -q 2"
 echo "Waiting for Conjur cli pod to launch..."
-wait_for_it 300 "oc describe po conjur-cli | grep State: | grep -c Running | grep -q 1"
+wait_for_it 50 "oc describe pod conjur-cli | grep State: | grep -c Running | grep -q 1"
 echo "Waiting for postgres pod to launch..."
-wait_for_it 300 "oc describe po conjur-postgres | grep State: | grep -c Running | grep -q 1"
-
+wait_for_it 50 "oc describe pod conjur-postgres | grep State: | grep -c Running | grep -q 1"
 
 sleep 15
 
 echo "Conjur created."
 
-
 # Setup Conjur
 echo "Creating admin account."
 
 conjur_pod=$(oc get pods | grep conjur-cluster | cut -f 1 -d ' ')
+echo $conjur_pod
+
 conjur_admin_api_key=$(oc exec $conjur_pod -c conjur conjurctl account create $CONJUR_ACCOUNT | grep "API key for admin" | cut -f 5 -d ' ')
 echo "Admin API key: $conjur_admin_api_key"
 
@@ -109,5 +108,3 @@ sleep 10
 oc exec $conjur_cli_pod -- conjur authn login -u admin -p $conjur_admin_api_key
 sleep 5
 oc exec $conjur_cli_pod -- conjur user update_password -p Cyberark1
-
-

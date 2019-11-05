@@ -7,8 +7,8 @@ metadata:
     app: conjur-cluster
 spec:
   ports:
-  - port: 443
-    name: https
+    - port: 443
+      name: https
   selector:
     app: conjur-cluster
   type: ClusterIP
@@ -34,56 +34,56 @@ spec:
     spec:
       serviceAccountName: conjur-cluster
       imagePullSecret:
-      - name: dockerpullsecret
+        - name: dockerpullsecret
       containers:
-      - name: conjur
-        image: {{ CONJUR_IMAGE }}
-        imagePullPolicy: {{ IMAGE_PULL_POLICY }}
-        args: ["server", "-p", "3000"]
-        ports:
-        - containerPort: 3000
-          name: conjur
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 3000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        env:
-          - name: CONJUR_DATA_KEY
-            value: "{{ CONJUR_DATA_KEY }}"
-          - name: DATABASE_URL
-            value: postgres://postgres@conjur-postgres/postgres
-          - name: CONJUR_AUTHENTICATORS
-            value: authn-k8s/openshift-test,authn
-          - name: CONJUR_ACCOUNT
-            value: {{ CONJUR_ACCOUNT }}
-      - name: nginx
-        image: {{ NGINX_IMAGE }}
-        imagePullPolicy: {{ IMAGE_PULL_POLICY }}
-        command: ["nginx"]
-        args: ["-g", "daemon off;"]
-        ports:
-        - containerPort: 443
-          name: https
-        livenessProbe:
-          httpGet:
-            path: /
-            scheme: HTTPS
-            port: https
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /
-            scheme: HTTPS
-            port: https
-          initialDelaySeconds: 30
-          periodSeconds: 10
+        - name: conjur
+          image: docker-registry.default.svc:5000/conjur-oss/conjur:conjur-oss
+          imagePullPolicy: {{ IMAGE_PULL_POLICY }}
+          args: ["server", "-p", "3000"]
+          ports:
+            - containerPort: 3000
+              name: conjur
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          env:
+            - name: CONJUR_DATA_KEY
+              value: "{{ CONJUR_DATA_KEY }}"
+            - name: DATABASE_URL
+              value: postgres://postgres@conjur-postgres/postgres
+            - name: CONJUR_AUTHENTICATORS
+              value: authn-k8s/openshift-test,authn
+            - name: CONJUR_ACCOUNT
+              value: {{ CONJUR_ACCOUNT }}
+        - name: nginx
+          image: docker-registry.default.svc:5000/conjur-oss/nginx:conjur-oss
+          imagePullPolicy: {{ IMAGE_PULL_POLICY }}
+          command: ["nginx"]
+          args: ["-g", "daemon off;"]
+          ports:
+            - containerPort: 443
+              name: https
+          livenessProbe:
+            httpGet:
+              path: /
+              scheme: HTTPS
+              port: https
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              scheme: HTTPS
+              port: https
+            initialDelaySeconds: 30
+            periodSeconds: 10
 

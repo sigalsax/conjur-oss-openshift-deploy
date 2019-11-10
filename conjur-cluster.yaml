@@ -64,8 +64,8 @@ spec:
               value: authn-k8s/openshift-test,authn
             - name: CONJUR_ACCOUNT
               value: {{ CONJUR_ACCOUNT }}
-            - name: CONJUR_LOG_LEVEL
-              value: debug
+            - name: RAILS_ENV
+              value: development
         - name: nginx
           image: docker-registry.default.svc:5000/conjur-oss/nginx:conjur-oss
           imagePullPolicy: {{ IMAGE_PULL_POLICY }}

@@ -61,7 +61,7 @@ spec:
             - name: DATABASE_URL
               value: postgres://postgres@conjur-postgres/postgres
             - name: CONJUR_AUTHENTICATORS
-              value: authn-k8s/openshift-test,authn
+              value: authn-k8s/{{ AUTHENTICATOR_ID }},authn
             - name: CONJUR_ACCOUNT
               value: {{ CONJUR_ACCOUNT }}
             - name: RAILS_ENV

@@ -70,6 +70,7 @@ sed -e "s#{{ CONJUR_IMAGE }}#$conjur_image#g" "./conjur-cluster.yaml" |
   sed -e "s#{{ CONJUR_ACCOUNT }}#$CONJUR_ACCOUNT#g" |
   sed -e "s#{{ IMAGE_PULL_POLICY }}#$IMAGE_PULL_POLICY#g" |
   sed -e "s#{{ AUTHENTICATOR_ID }}#$AUTHENTICATOR_ID#g" |
+  sed -e "s#{{ CONJUR_LOG_LEVEL }}#$CONJUR_LOG_LEVEL#g" |
   oc create -f -
 
 # Deploy conjur cli pod

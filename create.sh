@@ -50,10 +50,17 @@ nginx_image=$(platform_image "nginx")
 # Log into docker
 docker login --username=_ --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
 
-# Push conjur image to openshift repo
-sudo docker pull cyberark/conjur
-sudo docker tag "cyberark/conjur" $conjur_image
-sudo docker push $conjur_image
+# Allow using local conjur images for deployment
+if [[ -z "${LOCAL_CONJUR_IMAGE}" ]]; then
+  conjur_image_name="cyberark/conjur"
+  docker pull $conjur_image_name
+else
+  conjur_image_name="${LOCAL_CONJUR_IMAGE}"
+fi
+
+docker tag "$conjur_image_name" $conjur_image
+echo "Pushing Conjur image ${conjur_image_name} to Openshift repo..."
+docker push $conjur_image
 
 # Push nginx image to openshift repo
 cd nginx_base

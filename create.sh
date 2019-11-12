@@ -1,7 +1,6 @@
 source bootstrap.env
 . utils.sh
 
-
 # set out conjur-oss namespace
 oc new-project $CONJUR_NAMESPACE_NAME
 oc config set-context $(oc config current-context) --namespace="$CONJUR_NAMESPACE_NAME" > /dev/null
@@ -20,10 +19,8 @@ oc delete --ignore-not-found clusterrole conjur-authenticator-$CONJUR_NAMESPACE_
 # 2) create + get pods/exec (to inject cert into app sidecar
 sed -e "s#{{ CONJUR_NAMESPACE_NAME }}#$CONJUR_NAMESPACE_NAME#g" ./conjur-authenticator-role.yaml | oc apply -f -
 
-
 # allow pods to run as root
 oc adm policy add-scc-to-user anyuid "system:serviceaccount:$CONJUR_NAMESPACE_NAME:$CONJUR_SERVICEACCOUNT_NAME"
-
 
 # Create resources
 oc adm policy add-scc-to-user anyuid -z default # TODO: check why
@@ -51,7 +48,7 @@ conjur_image=$(platform_image "conjur")
 nginx_image=$(platform_image "nginx")
 
 # Log into docker
-sudo docker login --username=_ --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
+docker login --username=_ --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
 
 # Push conjur image to openshift repo
 sudo docker pull cyberark/conjur
@@ -60,14 +57,16 @@ sudo docker push $conjur_image
 
 # Push nginx image to openshift repo
 cd nginx_base
-sudo docker build -t $nginx_image .
-sudo docker push $nginx_image
+sed -e "s#{{ CONJUR_NAMESPACE_NAME }}#$CONJUR_NAMESPACE_NAME#g" ./proxy/ssl.conf
+docker build -t $nginx_image .
+docker push $nginx_image
 cd ..
 
 sed -e "s#{{ CONJUR_IMAGE }}#$conjur_image#g" "./conjur-cluster.yaml" |
   sed -e "s#{{ NGINX_IMAGE }}#$nginx_image#g" |
   sed -e "s#{{ CONJUR_DATA_KEY }}#$(openssl rand -base64 32)#g" |
   sed -e "s#{{ CONJUR_ACCOUNT }}#$CONJUR_ACCOUNT#g" |
+  sed -e "s#{{ CONJUR_NAMESPACE_NAME }}#$CONJUR_NAMESPACE_NAME#g" |
   sed -e "s#{{ IMAGE_PULL_POLICY }}#$IMAGE_PULL_POLICY#g" |
   sed -e "s#{{ AUTHENTICATOR_ID }}#$AUTHENTICATOR_ID#g" |
   sed -e "s#{{ CONJUR_LOG_LEVEL }}#$CONJUR_LOG_LEVEL#g" |

@@ -37,7 +37,7 @@ spec:
         - name: dockerpullsecret
       containers:
         - name: conjur
-          image: docker-registry.default.svc:5000/conjur-oss/conjur:conjur-oss
+          image: docker-registry.default.svc:5000/{{ CONJUR_NAMESPACE_NAME }}/conjur:{{ CONJUR_NAMESPACE_NAME }}
           imagePullPolicy: {{ IMAGE_PULL_POLICY }}
           args: ["server", "-p", "3000"]
           ports:
@@ -68,7 +68,7 @@ spec:
               value: {{ CONJUR_LOG_LEVEL }}
 
         - name: nginx
-          image: docker-registry.default.svc:5000/conjur-oss/nginx:conjur-oss
+          image: docker-registry.default.svc:5000/{{ CONJUR_NAMESPACE_NAME }}/nginx:{{ CONJUR_NAMESPACE_NAME }}
           imagePullPolicy: {{ IMAGE_PULL_POLICY }}
           command: ["nginx"]
           args: ["-g", "daemon off;"]

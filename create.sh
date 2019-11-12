@@ -1,4 +1,7 @@
 source bootstrap.env
+
+./0_check_dependencies.sh
+
 . utils.sh
 
 # set out conjur-oss namespace

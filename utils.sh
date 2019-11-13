@@ -12,6 +12,15 @@ announce() {
   echo "++++++++++++++++++++++++++++++++++++++"
 }
 
+check_env_var() {
+  if [[ -z "${!1+x}" ]]; then
+# where ${var+x} is a parameter expansion which evaluates to nothing if var is unset, and substitutes the string x otherwise.
+# https://stackoverflow.com/questions/3601515/how-to-check-if-a-variable-is-set-in-bash/13864829#13864829
+    echo "You must set $1 before running these scripts."
+    exit 1
+  fi
+}
+
 platform_image() {
   echo "$DOCKER_REGISTRY_PATH/$CONJUR_NAMESPACE_NAME/$1:$CONJUR_NAMESPACE_NAME"
 }

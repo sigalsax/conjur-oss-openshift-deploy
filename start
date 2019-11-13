@@ -1,6 +1,12 @@
-source bootstrap.env
-. utils.sh
+./stop
 
+export CONJUR_SERVICEACCOUNT_NAME=conjur-cluster
+export IMAGE_PULL_POLICY='Always'
+export SECRET_NAME=dockerpullsecret
+
+./0_check_dependencies.sh
+
+. utils.sh
 
 # set out conjur-oss namespace
 oc new-project $CONJUR_NAMESPACE_NAME
@@ -12,7 +18,6 @@ oc create serviceaccount $CONJUR_SERVICEACCOUNT_NAME -n $CONJUR_NAMESPACE_NAME
 # create secret for docker
 oc create secret docker-registry $SECRET_NAME --docker-server=$DOCKER_REGISTRY_PATH --docker-username=_ --docker-password=$(oc whoami -t) --docker-email=_
 
-# Why are we deleteing this clusterrole? 
 oc delete --ignore-not-found clusterrole conjur-authenticator-$CONJUR_NAMESPACE_NAME
 
 # Grant default service account permissions it needs for authn-k8s to:
@@ -20,10 +25,8 @@ oc delete --ignore-not-found clusterrole conjur-authenticator-$CONJUR_NAMESPACE_
 # 2) create + get pods/exec (to inject cert into app sidecar
 sed -e "s#{{ CONJUR_NAMESPACE_NAME }}#$CONJUR_NAMESPACE_NAME#g" ./conjur-authenticator-role.yaml | oc apply -f -
 
-
 # allow pods to run as root
 oc adm policy add-scc-to-user anyuid "system:serviceaccount:$CONJUR_NAMESPACE_NAME:$CONJUR_SERVICEACCOUNT_NAME"
-
 
 # Create resources
 oc adm policy add-scc-to-user anyuid -z default # TODO: check why
@@ -51,25 +54,35 @@ conjur_image=$(platform_image "conjur")
 nginx_image=$(platform_image "nginx")
 
 # Log into docker
-sudo docker login --username=admin --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
+docker login --username=_ --password=$(oc whoami -t) $DOCKER_REGISTRY_PATH
 
-# Push conjur image to openshift repo
-sudo docker pull cyberark/conjur
-imageId=$(sudo docker images | grep "docker.io/cyberark/conjur " | awk '{print $3}')
-sudo docker tag $imageId $conjur_image
-sudo docker push $conjur_image
+# Allow using local conjur images for deployment
+if [[ -z "${LOCAL_CONJUR_IMAGE}" ]]; then
+  conjur_image_name="cyberark/conjur"
+  docker pull $conjur_image_name
+else
+  conjur_image_name="${LOCAL_CONJUR_IMAGE}"
+fi
+
+docker tag "$conjur_image_name" $conjur_image
+echo "Pushing Conjur image ${conjur_image_name} to Openshift repo..."
+docker push $conjur_image
 
 # Push nginx image to openshift repo
 cd nginx_base
-sudo docker build -t $nginx_image .
-sudo docker push $nginx_image
+sed -i -e "s#{{ CONJUR_NAMESPACE_NAME }}#$CONJUR_NAMESPACE_NAME#g" ./proxy/ssl.conf
+docker build -t $nginx_image .
+docker push $nginx_image
 cd ..
 
 sed -e "s#{{ CONJUR_IMAGE }}#$conjur_image#g" "./conjur-cluster.yaml" |
   sed -e "s#{{ NGINX_IMAGE }}#$nginx_image#g" |
   sed -e "s#{{ CONJUR_DATA_KEY }}#$(openssl rand -base64 32)#g" |
   sed -e "s#{{ CONJUR_ACCOUNT }}#$CONJUR_ACCOUNT#g" |
+  sed -e "s#{{ CONJUR_NAMESPACE_NAME }}#$CONJUR_NAMESPACE_NAME#g" |
   sed -e "s#{{ IMAGE_PULL_POLICY }}#$IMAGE_PULL_POLICY#g" |
+  sed -e "s#{{ AUTHENTICATOR_ID }}#$AUTHENTICATOR_ID#g" |
+  sed -e "s#{{ CONJUR_LOG_LEVEL }}#$CONJUR_LOG_LEVEL#g" |
   oc create -f -
 
 # Deploy conjur cli pod
@@ -79,22 +92,22 @@ sed -e "s#{{ CLI_IMAGE }}#$cli_app_image#g" "./conjur-cli.yaml" |
   oc create -f -
 
 echo "Waiting for Conjur pod to launch..."
-wait_for_it 300 "oc describe po conjur-cluster | grep State: | grep -c Running | grep -q 2"
+wait_for_it 50 "oc describe pod conjur-cluster | grep State: | grep -c Running | grep -q 2"
 echo "Waiting for Conjur cli pod to launch..."
-wait_for_it 300 "oc describe po conjur-cli | grep State: | grep -c Running | grep -q 1"
+wait_for_it 50 "oc describe pod conjur-cli | grep State: | grep -c Running | grep -q 1"
 echo "Waiting for postgres pod to launch..."
-wait_for_it 300 "oc describe po conjur-postgres | grep State: | grep -c Running | grep -q 1"
-
+wait_for_it 50 "oc describe pod conjur-postgres | grep State: | grep -c Running | grep -q 1"
 
 sleep 15
 
 echo "Conjur created."
 
-
 # Setup Conjur
 echo "Creating admin account."
 
 conjur_pod=$(oc get pods | grep conjur-cluster | cut -f 1 -d ' ')
+echo $conjur_pod
+
 conjur_admin_api_key=$(oc exec $conjur_pod -c conjur conjurctl account create $CONJUR_ACCOUNT | grep "API key for admin" | cut -f 5 -d ' ')
 echo "Admin API key: $conjur_admin_api_key"
 
@@ -108,6 +121,5 @@ oc exec $conjur_cli_pod -- bash -c "yes yes | conjur init -a $CONJUR_ACCOUNT -u 
 sleep 10
 oc exec $conjur_cli_pod -- conjur authn login -u admin -p $conjur_admin_api_key
 sleep 5
-oc exec $conjur_cli_pod -- conjur user update_password -p Cyberark1
-
+oc exec $conjur_cli_pod -- conjur user update_password -p $CONJUR_ADMIN_PASSWORD
 
